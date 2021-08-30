@@ -280,6 +280,85 @@ QIcon Theme::uiThemeIcon(const QString &iconName, bool uiHasDarkBg) const
     return QIcon(QPixmap(iconPath));
 }
 
+QPixmap Theme::pixmapForBackground(const QString &fileName, const QColor &backgroundColor) const
+{
+    Q_ASSERT(!fileName.isEmpty());
+
+    const auto iconBasePath = QStringLiteral(":/client/theme");
+
+    // some icons are present in white or black only, so, we need to check both when needed
+    const auto iconBaseColors = QStringList({ QStringLiteral("black"), QStringLiteral("white") });
+
+    const QString pixmapColor = backgroundColor.isValid() && !Theme::isDarkColor(backgroundColor) ? "black" : "white";
+
+    const QString cacheKey = fileName + QLatin1Char(',') + pixmapColor;
+
+    auto &cachedPixmap = _pixmapCache[cacheKey];
+
+    if (cachedPixmap.isNull()) {
+        if (iconBaseColors.contains(pixmapColor)) {
+            return cachedPixmap = QPixmap::fromImage(QImage(iconBasePath + QLatin1Char('/') + pixmapColor + QLatin1Char('/') + fileName));
+        }
+
+        const auto drawSvgWithCustomFillColor = [](const QString &sourceSvgPath, const QString &fillColor) {
+            QSvgRenderer svgRenderer;
+            
+            if (!svgRenderer.load(sourceSvgPath)) {
+                return QPixmap();
+            }
+
+            // render source image
+            QImage svgImage(svgRenderer.defaultSize(), QImage::Format_ARGB32);
+            {
+                QPainter svgImagePainter(&svgImage);
+                svgImage.fill(Qt::GlobalColor::transparent);
+                svgRenderer.render(&svgImagePainter);
+            }
+
+            // draw target image with custom fillColor
+            QImage image(svgRenderer.defaultSize(), QImage::Format_ARGB32);
+            image.fill(QColor(fillColor));
+            {
+                QPainter imagePainter(&image);
+                imagePainter.setCompositionMode(QPainter::CompositionMode_DestinationIn);
+                imagePainter.drawImage(0, 0, svgImage);
+            }
+
+            return QPixmap::fromImage(image);
+        };
+
+        // find the first matching svg among base colors, if any
+        const QString sourceSvg = [&]() {
+            for (const auto &color : iconBaseColors) {
+                const QString baseSVG(iconBasePath + QLatin1Char('/') + color + QLatin1Char('/') + fileName);
+
+                if (QFile(baseSVG).exists()) {
+                    return baseSVG;
+                }
+            }
+            return QString();
+        }();
+
+        Q_ASSERT(!iconBaseColors.isEmpty());
+        if (iconBaseColors.isEmpty()) {
+            qWarning("Failed to find base svg for %s", cacheKey);
+            _pixmapCache.remove(cacheKey);
+            return {};
+        }
+
+        cachedPixmap = drawSvgWithCustomFillColor(sourceSvg, pixmapColor);
+
+        Q_ASSERT(!cachedPixmap.isNull());
+        if (cachedPixmap.isNull()) {
+            qWarning("Failed to load pixmap for %s", cacheKey);
+            _pixmapCache.remove(cacheKey);
+            return {};
+        }
+    }
+
+    return cachedPixmap;
+}
+
 QString Theme::hidpiFileName(const QString &fileName, QPaintDevice *dev)
 {
     if (!Theme::isHidpi(dev)) {

@@ -46,6 +46,7 @@
 #include <QColor>
 #include <QPainter>
 #include <QListWidget>
+#include <QSvgRenderer>
 
 #include <cstring>
 
@@ -940,15 +941,19 @@ void ShareUserLine::customizeStyle()
 
 QPixmap ShareUserLine::pixmapForShareeType(int type, const QColor &backgroundColor) const
 {
-    const QString pixmapColor = backgroundColor.isValid() && !Theme::isDarkColor(backgroundColor) ? "black" : "white";
+    QString fileName;
     switch (type) {
     case Sharee::Room:
-        return QPixmap::fromImage(QImage(QString(":/client/theme/%1/talk-app.svg").arg(pixmapColor)));
+        fileName = QStringLiteral("talk-app.svg");
+        break;
     case Sharee::Email:
-        return QPixmap::fromImage(QImage(QString(":/client/theme/%1/email.svg").arg(pixmapColor)));
+        fileName = QStringLiteral("email.svg");
+        break;
     default:
-        return {};
+        return QPixmap();
     }
+
+    return Theme::instance()->pixmapForBackground(fileName, backgroundColor);
 }
 
 QColor ShareUserLine::backgroundColorForShareeType(int type) const

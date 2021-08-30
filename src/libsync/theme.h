@@ -435,6 +435,8 @@ public:
     * (actually 2019/09/13 only systray theming).
     */
 	virtual QIcon uiThemeIcon(const QString &iconName, bool uiHasDarkBg) const;
+
+    QPixmap pixmapForBackground(const QString &fileName, const QColor &backgroundColor = QColor()) const;
     
     /**
      * @brief Perform a calculation to check if a colour is dark or light and accounts for different sensitivity of the human eye.
@@ -561,6 +563,7 @@ private:
 #ifndef TOKEN_AUTH_ONLY
     mutable QHash<QString, QIcon> _iconCache;
 #endif
+    mutable QHash<QString, QPixmap> _pixmapCache;
 };
 }
 #endif // _THEME_H
