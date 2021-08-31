@@ -169,10 +169,11 @@ private slots:
 private:
     void displayPermissions();
     void loadAvatar();
+    void setDefaultAvatar(int avatarSize);
     void customizeStyle();
 
-    QPixmap pixmapForShareeType(int type, const QColor &backgroundColor = QColor()) const;
-    QColor backgroundColorForShareeType(int type) const;
+    QPixmap pixmapForShareeType(Sharee::Type type, const QColor &backgroundColor = QColor()) const;
+    QColor backgroundColorForShareeType(Sharee::Type type) const;
 
   void showNoteOptions(bool show);
   void toggleNoteOptions(bool enable);

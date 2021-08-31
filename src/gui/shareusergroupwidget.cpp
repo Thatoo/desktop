@@ -521,7 +521,6 @@ ShareUserLine::ShareUserLine(AccountPtr account,
 
     showNoteOptions(false);
 
-    // email shares do not support notes and expiration dates
     const bool isNoteSupported = _share->getShareType() != Share::ShareType::TypeEmail && _share->getShareType() != Share::ShareType::TypeRoom;
 
     if (isNoteSupported) {
@@ -647,6 +646,21 @@ void ShareUserLine::loadAvatar()
     _ui->avatar->setMaximumWidth(avatarSize);
     _ui->avatar->setAlignment(Qt::AlignCenter);
 
+    setDefaultAvatar(avatarSize);
+
+    /* Start the network job to fetch the avatar data.
+     *
+     * Currently only regular users can have avatars.
+     */
+    if (_share->getShareWith()->type() == Sharee::User) {
+        auto *job = new AvatarJob(_share->account(), _share->getShareWith()->shareWith(), avatarSize, this);
+        connect(job, &AvatarJob::avatarPixmap, this, &ShareUserLine::slotAvatarLoaded);
+        job->start();
+    }
+}
+
+void ShareUserLine::setDefaultAvatar(int avatarSize)
+{
     /* Create the fallback avatar.
      *
      * This will be shown until the avatar image data arrives.
@@ -664,26 +678,16 @@ void ShareUserLine::loadAvatar()
     })").arg(backgroundColor.name(), QString::number(avatarSize / 2));
     _ui->avatar->setStyleSheet(style);
 
-    // The avatar label is the first character of the user name.
-    const QString text = _share->getShareWith()->displayName();
-
     const auto pixmap = pixmapForShareeType(_share->getShareWith()->type(), backgroundColor);
 
     if (!pixmap.isNull()) {
         _ui->avatar->setPixmap(pixmap);
     } else {
         qCDebug(lcSharing) << "pixmap is null for share type: " << _share->getShareWith()->type();
-        _ui->avatar->setText(text.at(0).toUpper());
-    }
 
-    /* Start the network job to fetch the avatar data.
-     *
-     * Currently only regular users can have avatars.
-     */
-    if (_share->getShareWith()->type() == Sharee::User) {
-        auto *job = new AvatarJob(_share->account(), _share->getShareWith()->shareWith(), avatarSize, this);
-        connect(job, &AvatarJob::avatarPixmap, this, &ShareUserLine::slotAvatarLoaded);
-        job->start();
+        // The avatar label is the first character of the user name.
+        const auto text = _share->getShareWith()->displayName();
+        _ui->avatar->setText(text.at(0).toUpper());
     }
 }
 
@@ -939,7 +943,7 @@ void ShareUserLine::customizeStyle()
     _ui->errorLabel->setBackgroundRole(QPalette::WindowText);
 }
 
-QPixmap ShareUserLine::pixmapForShareeType(int type, const QColor &backgroundColor) const
+QPixmap ShareUserLine::pixmapForShareeType(Sharee::Type type, const QColor &backgroundColor) const
 {
     QString fileName;
     switch (type) {
@@ -956,7 +960,7 @@ QPixmap ShareUserLine::pixmapForShareeType(int type, const QColor &backgroundCol
     return Theme::instance()->pixmapForBackground(fileName, backgroundColor);
 }
 
-QColor ShareUserLine::backgroundColorForShareeType(int type) const
+QColor ShareUserLine::backgroundColorForShareeType(Sharee::Type type) const
 {
     switch (type) {
     case Sharee::Room:
@@ -967,14 +971,18 @@ QColor ShareUserLine::backgroundColorForShareeType(int type) const
         break;
     }
 
-    const auto hash = QCryptographicHash::hash(_ui->sharedWith->text().toUtf8(), QCryptographicHash::Md5);
-    Q_ASSERT(hash.size() > 0);
-    if (hash.size() == 0) {
-        qCWarning(lcSharing) << "Failed to calculate hash color for share:" << _share->path();
-        return {};
-    }
-    const double hue = static_cast<quint8>(hash[0]) / 255.;
-    return QColor::fromHslF(hue, 0.7, 0.68);
+    const auto calculateBackgroundBasedOnText = [this]() {
+        const auto hash = QCryptographicHash::hash(_ui->sharedWith->text().toUtf8(), QCryptographicHash::Md5);
+        Q_ASSERT(hash.size() > 0);
+        if (hash.size() == 0) {
+            qCWarning(lcSharing) << "Failed to calculate hash color for share:" << _share->path();
+            return QColor();
+        }
+        const double hue = static_cast<quint8>(hash[0]) / 255.;
+        return QColor::fromHslF(hue, 0.7, 0.68);
+    };
+
+    return calculateBackgroundBasedOnText();
 }
 
 void ShareUserLine::showNoteOptions(bool show)
