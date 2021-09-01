@@ -341,7 +341,7 @@ QPixmap Theme::pixmapForBackground(const QString &fileName, const QColor &backgr
 
         Q_ASSERT(!iconBaseColors.isEmpty());
         if (iconBaseColors.isEmpty()) {
-            qWarning("Failed to find base svg for %s", cacheKey);
+            qWarning("Failed to find base svg for %s", qPrintable(cacheKey));
             _pixmapCache.remove(cacheKey);
             return {};
         }
@@ -350,7 +350,7 @@ QPixmap Theme::pixmapForBackground(const QString &fileName, const QColor &backgr
 
         Q_ASSERT(!cachedPixmap.isNull());
         if (cachedPixmap.isNull()) {
-            qWarning("Failed to load pixmap for %s", cacheKey);
+            qWarning("Failed to load pixmap for %s", qPrintable(cacheKey));
             _pixmapCache.remove(cacheKey);
             return {};
         }
