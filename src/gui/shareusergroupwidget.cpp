@@ -976,7 +976,7 @@ QColor ShareUserLine::backgroundColorForShareeType(Sharee::Type type) const
         Q_ASSERT(hash.size() > 0);
         if (hash.size() == 0) {
             qCWarning(lcSharing) << "Failed to calculate hash color for share:" << _share->path();
-            return QColor();
+            return QColor{};
         }
         const double hue = static_cast<quint8>(hash[0]) / 255.;
         return QColor::fromHslF(hue, 0.7, 0.68);
